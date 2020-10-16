@@ -6,21 +6,21 @@
  * Date: 2019-07-27 20:30:01 (星期六)
  * Describe: 
  *************************************************/
-#ifndef __CACHECACHE_H__
-#define __CACHECACHE_H_
+#pragma once
 #include <unordered_map>
+#include <chrono>
 #include <rw_mutex.h>
 
 
 namespace AHAOAHA {
+    uint64_t get_curr_millon_second() {
+        std::chrono::system_clock::duration d = system_clock::now().time_since_epoch();
+        return duration_cast<milliseconds>(d);
+    }
 
     template<class Key, class Value>
     class CacheCache {
         public:
-            CacheCache() {}
-
-            ~CacheCache() {}
-
             bool Get(const Key& k, Value& v) {
                 _rw_mtx.r_lock();
 
@@ -32,33 +32,51 @@ namespace AHAOAHA {
                     return false;
                 }
 
+                if (get_curr_millon_second() - _cache_map.at(k)._create_time_stamp > _expr_time) {
+                    return false;
+                }
+
                 // add key value
-                v = _cache_map[k];
+                v = _cache_map.at(k)._v;
                 _rw_mtx.r_unlock();
                 return true;    
             }
 
             bool Put(Key k, Value v) {
                 //write lock
+                cacheValue cv;
+                cv._v = v;
                 _rw_mtx.w_lock();
-                _cache_map[k] = v;
+                _cache_map[k] = cv;
                 _rw_mtx.w_unlock();
                 return true;
             }
 
-            //bool SetMaxMem(uint64_t max_mem) {
-            //    _max_mem = max_mem;
-            //}
-            //bool SetExprTime(uint64_t expr_time/*second*/) {
-            //    _expr_time = expr_time;
-            //}
+            bool SetMaxCapacity(uint64_t max_capacity) {
+                _rw_mtx.w_lock();
+                if (_max_capacity < max_capacity) {
+                    return false;
+                }
+                _max_capacity = max_capacity;
+                _rw_mtx.w_unlock();
+                return true;
+            }
+            bool SetExprTime(uint64_t expr_time/*second*/) {
+                _rw_mtx.w_lock();
+                _expr_time = expr_time;
+                _rw_mtx.w_unlock();
+                return true;
+            }
 
         private:
-
-            std::unordered_map<Key, Value> _cache_map; //cache
+            struct cacheValue {
+                Value _v;
+                uint64_t _create_time_stamp = get_curr_millon_second();
+            };
+            std::unordered_map<Key, cacheValue> _cache_map; //cache
             AHAOAHA::rw_mutex _rw_mtx;   //rw lock
+	        uint64_t _max_capacity = UINT64_MAX;
+            uint64_t _expr_time = UINT64_MAX;
     };
 }
 
-
-#endif //cachecache.h
