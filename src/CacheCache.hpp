@@ -33,6 +33,7 @@ namespace AHAOAHA {
                 }
 
                 if (get_curr_millon_second() - _cache_map.at(k)._create_time_stamp > _expr_time) {
+                    _rw_mtx.r_unlock();
                     return false;
                 }
 
@@ -47,6 +48,10 @@ namespace AHAOAHA {
                 cacheValue cv;
                 cv._v = v;
                 _rw_mtx.w_lock();
+                if (_max_capacity <= _cache_map.size()) {
+                    _rw_mtx.w_unlock();
+                    return false;
+                }
                 _cache_map[k] = cv;
                 _rw_mtx.w_unlock();
                 return true;
@@ -55,6 +60,7 @@ namespace AHAOAHA {
             bool SetMaxCapacity(uint64_t max_capacity) {
                 _rw_mtx.w_lock();
                 if (_max_capacity < max_capacity) {
+                    _rw_mtx.w_unlock();
                     return false;
                 }
                 _max_capacity = max_capacity;
@@ -74,7 +80,7 @@ namespace AHAOAHA {
                 uint64_t _create_time_stamp = get_curr_millon_second();
             };
             std::unordered_map<Key, cacheValue> _cache_map; //cache
-            AHAOAHA::rw_mutex _rw_mtx;   //rw lock
+            AHAOAHA::RW_Mutex _rw_mtx;   //rw lock
 	        uint64_t _max_capacity = UINT64_MAX;
             uint64_t _expr_time = UINT64_MAX;
     };
