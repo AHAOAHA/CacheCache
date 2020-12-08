@@ -21,6 +21,12 @@ namespace AHAOAHA {
     template<class Key, class Value>
     class CacheCache {
         public:
+            /**
+             * @brief: 获取缓存数据
+             * @param: [in] Key
+             * @param: [out] Value
+             * @return: 成功返回true, 失败返回false
+             */
             bool Get(const Key& k, Value& v) {
                 _rw_mtx.r_lock();
 
@@ -43,6 +49,29 @@ namespace AHAOAHA {
                 return true;
             }
 
+            /**
+             * @brief: 删除缓存数据
+             * @param: [in] Key
+             */
+            void Delete(const Key& k) {
+                _rw_mtx.w_lock();
+                _cache_map.erase(k);
+                _rw_mtx.w_unlock();
+            }
+
+            /**
+             * @brief: 获取当前缓存容量
+             */
+            uint64_t Size() {
+                return _cache_map.size();
+            }
+
+            /**
+             * @brief: 插入数据
+             * @param: [in] Key
+             * @param: [in] Value
+             * @return: 成功返回true, 失败返回false
+             */
             bool Put(Key k, Value v) {
                 //write lock
                 cacheValue cv;
@@ -57,6 +86,11 @@ namespace AHAOAHA {
                 return true;
             }
 
+            /**
+             * @brief: 设置缓存最大容量，默认不限制
+             * @param: [in] max_capacity 最大容量
+             * @return: 成功返回true, 失败返回false
+             */
             bool SetMaxCapacity(uint64_t max_capacity) {
                 _rw_mtx.w_lock();
                 if (_max_capacity < max_capacity) {
@@ -67,6 +101,12 @@ namespace AHAOAHA {
                 _rw_mtx.w_unlock();
                 return true;
             }
+
+            /**
+             * @brief: 设置缓存过期时长，默认不限制
+             * @param: [in] expr_time 过期时长，单位为秒
+             * @return: 成功返回true, 失败返回false
+             */
             bool SetExprTime(uint64_t expr_time/*second*/) {
                 _rw_mtx.w_lock();
                 _expr_time = expr_time;
